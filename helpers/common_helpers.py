@@ -2,6 +2,7 @@ from typing import Union
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+from scikit_posthocs import posthoc_dunn
 from scipy.stats import shapiro, kstest, normaltest, norm, kruskal, f_oneway, tukey_hsd
 from itertools import combinations
 import pprint
@@ -178,6 +179,32 @@ def get_r_rank_assessment_global_effect_size(r:float) -> str:
     else:
         return "large"
 
+def get_main_stats(
+        groups: list[list[float]],
+        factor_name: str,
+        factor_levels: list[str],
+        is_parametric: bool = True,
+) -> dict:
+    payload = {}
+    if is_parametric:
+        are_means_different = is_the_mean_different(groups)
+        payload[f"effect_size_{factor_name}"] = get_global_effect_size(groups, method="one_way_anova")
+        res = tukey_hsd(*groups)
+        payload[f"tukey_hsd_{factor_name}"] = res
+        pairwise_effects = get_parametric_pairwise_effect_size(groups, factor_levels)
+        ci = get_confidence_intervals_parametric(groups, factor_levels)
+
+    else:
+        are_means_different = is_the_mean_different(groups, method="kruskal")
+        payload[f"effect_size_{factor_name}"] = get_global_effect_size(groups, method="kruskal")
+        res = posthoc_dunn(groups, p_adjust='holm')
+        payload["dunn_lc"] = res
+        pairwise_effects = get_non_parametric_pairwise_effect_size(groups, factor_levels)
+        ci = get_confidence_intervals_non_parametric(groups, factor_levels)
+    payload[f"pairwise_effects_{factor_name}"] = {"pairwise_effects": pairwise_effects, "type": "parametric" if is_parametric else "non_parametric"}
+    payload[f"confidence_intervals_{factor_name}"] = ci
+    payload[f"are_{factor_name}_means_different"] = are_means_different
+    return payload
 
 def generate_standard_plot_and_stats_for_1d_data(data: Union[pd.Series, list], show_plot=True, xlab="",
                                                  ylab="") -> dict:
