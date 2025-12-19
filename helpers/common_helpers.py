@@ -26,6 +26,12 @@ class DependentVariablePerTask(Enum):
     task3 = DependentVariables.HISTORY_LOWEST_OVERALL_COST.value
     task4 = DependentVariables.HISTORY_HIGHEST_OVERALL_COST.value
 
+
+class VisualizationTypes(Enum):
+    LINE_CHARTS = "lc"
+    COLORFIELDS = "h" # colorfields in the publication
+
+
 def is_data_normal(data: [], method="normaltest") -> bool:
     if method == "normaltest":
         stat, p = normaltest(data)

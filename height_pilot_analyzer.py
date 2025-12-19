@@ -41,8 +41,8 @@ DATA_EXTREMA = {
 
 def task_ploter(
         t_data: pd.DataFrame,
-        dependent_variable_name: str,
-        task_name: str
+        dependent_variable_name: DependentVariablePerTask,
+        task_name: Tasks
 ) -> dict:
     """
     Plots the data for a given task and return the statistics for each height and visualization for both costs and time
@@ -130,12 +130,12 @@ def main():
     data = read_inputs()
     tasks = [task.value for task in Tasks]
     results = {}
-    for index, task_number in enumerate(tasks):
-        concat_df = concater(data[task_number]["gy"], data[task_number]["list"])
-        result = task_ploter(concat_df, DependentVariablePerTask[task_number].value, task_number)
-        print_effect_sizes_with_ci_as_table(result, task_number)
-        results[task_number] = result
-        print(f"""results for {task_number} are: 
+    for index, task_name in enumerate(tasks):
+        concat_df = concater(data[task_name]["gy"], data[task_name]["list"])
+        result = task_ploter(concat_df, DependentVariablePerTask[task_name].value, task_name)
+        print_effect_sizes_with_ci_as_table(result, task_name)
+        results[task_name] = result
+        print(f"""results for {task_name} are: 
         {result}""")
     print("All tasks processed.")
 
