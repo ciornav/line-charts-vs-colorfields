@@ -3,7 +3,9 @@ import matplotlib.pyplot as plt
 from typing import Tuple
 from scipy.stats import tukey_hsd
 from scikit_posthocs import posthoc_dunn
-from helpers.common_helpers import is_data_normal, is_the_mean_different, generate_standard_plot_and_stats_for_1d_data
+from helpers.common_helpers import is_data_normal, is_the_mean_different, generate_standard_plot_and_stats_for_1d_data, \
+    get_global_effect_size, get_non_parametric_pairwise_effect_size, get_parametric_pairwise_effect_size, \
+    get_confidence_intervals_non_parametric, get_confidence_intervals_parametric
 
 
 def get_1D_statistics_for_each_height(colorfield_df:pd.DataFrame, line_chart_df:pd.DataFrame, dependent_variable:str, task_number:int) -> Tuple[list, list]:
@@ -27,6 +29,32 @@ def get_1D_statistics_for_each_height(colorfield_df:pd.DataFrame, line_chart_df:
     return lc_stats, h_stats
 
 
+def _get_main_stats(
+        groups: list[list[float]],
+        factor_name: str,
+        factor_levels: list[str],
+        is_parametric: bool = True,
+) -> dict:
+    payload = {}
+    if is_parametric:
+        are_means_different = is_the_mean_different(groups)
+        payload[f"effect_size_{factor_name}"] = get_global_effect_size(groups, method="one_way_anova")
+        res = tukey_hsd(*groups)
+        payload[f"tukey_hsd_{factor_name}"] = res
+        pairwise_effects = get_parametric_pairwise_effect_size(groups, factor_levels)
+        ci = get_confidence_intervals_parametric(groups, factor_levels)
+
+    else:
+        are_means_different = is_the_mean_different(groups, method="kruskal")
+        payload[f"effect_size_{factor_name}"] = get_global_effect_size(groups, method="kruskal")
+        res = posthoc_dunn(groups, p_adjust='holm')
+        payload["dunn_lc"] = res
+        pairwise_effects = get_non_parametric_pairwise_effect_size(groups, factor_levels)
+        ci = get_confidence_intervals_non_parametric(groups, factor_levels)
+    payload[f"pairwise_effects_{factor_name}"] = {"pairwise_effects": pairwise_effects, "type": "parametric" if is_parametric else "non_parametric"}
+    payload[f"confidence_intervals_{factor_name}"] = ci
+    payload[f"are_{factor_name}_means_different"] = are_means_different
+    return payload
 
 def stats_means_accuracy_height(df: pd.DataFrame, dependent_variable_name: str) -> dict:
     line_chart_df = df[df["visualization"] == "line_chart"]
@@ -39,6 +67,7 @@ def stats_means_accuracy_height(df: pd.DataFrame, dependent_variable_name: str) 
     h40px = heatmap_df[heatmap_df["scent_height"] == "40px"][dependent_variable_name].to_list()
     lc_dfs = [lc20px, lc30px, lc40px]
     h_dfs = [h20px, h30px, h40px]
+    factor_levels = ["20px", "30px", "40px"]
     payload = {}
     lc_normality = True
     for l in lc_dfs:
@@ -51,23 +80,17 @@ def stats_means_accuracy_height(df: pd.DataFrame, dependent_variable_name: str) 
             h_normality = False
     payload["are_h_populations_normal"] = h_normality
     if lc_normality:
-        are_lc_means_different = is_the_mean_different(lc_dfs)
-        res_lc = tukey_hsd(*lc_dfs)
-        payload["tukey_hsd_lc"] = res_lc
+        resp = _get_main_stats(lc_dfs, "lc", factor_levels, is_parametric=True)
+        payload.update(resp)
     else:
-        are_lc_means_different = is_the_mean_different(lc_dfs, method="kruskal")
-        res_lc = posthoc_dunn(lc_dfs, p_adjust='holm')
-        payload["dunn_lc"] = res_lc
-    payload["are_lc_means_different"] = are_lc_means_different
+        resp = _get_main_stats(lc_dfs, "lc", factor_levels, is_parametric=False)
+        payload.update(resp)
     if h_normality:
-        are_h_means_different = is_the_mean_different(h_dfs)
-        res_h = tukey_hsd(*h_dfs)
-        payload["tukey_hsd_h"] = res_h
+        resp = _get_main_stats(h_dfs, "h", factor_levels, is_parametric=True)
+        payload.update(resp)
     else:
-        are_h_means_different = is_the_mean_different(h_dfs, method="kruskal")
-        res_h = posthoc_dunn(h_dfs, p_adjust='holm')
-        payload["dunn_h"] = res_h
-    payload["are_h_means_different"] = are_h_means_different
+        resp = _get_main_stats(h_dfs, "h", factor_levels, is_parametric=False)
+        payload.update(resp)
     return payload
 
 
@@ -75,12 +98,13 @@ def stats_means_accuracy_viz(df: pd.DataFrame, dependent_variable_name: str) -> 
     line_charts = df[df["visualization"] == "line_chart"][dependent_variable_name].to_list()
     heatmaps = df[df["visualization"] == "heatmap"][dependent_variable_name].to_list()
     dfs = [line_charts, heatmaps]
+    factor_levels = ["line_charts", "heatmaps"]
     payload = {}
-    lc_normality = True
+    normality = True
     for l in dfs:
         if not is_data_normal(l):
-            lc_normality = False
-    payload["are_populations_normal"] = lc_normality
+            normality = False
+    payload["are_populations_normal"] = normality
     stats_1d = {}
     for index, d in enumerate(dfs):
         if index == 0:
@@ -90,15 +114,24 @@ def stats_means_accuracy_viz(df: pd.DataFrame, dependent_variable_name: str) -> 
             print("=====statistics for colorfields. Accuracy vs visualization.========")
             stats_1d["colorfields"] = generate_standard_plot_and_stats_for_1d_data(d, show_plot=False)
     payload["stats_1d"] = stats_1d
-    if lc_normality:
-        are_lc_means_different = is_the_mean_different(dfs)
+    if normality:
+        are_means_different = is_the_mean_different(dfs)
         res_lc = tukey_hsd(*dfs)
-        payload["tukey_hsd_lc"] = res_lc
+        payload["tukey_hsd_visualization"] = res_lc
+        pairwise_effects = get_parametric_pairwise_effect_size(dfs, factor_levels)
+        payload["pairwise_effects_visualization"] = {"pairwise_effects": pairwise_effects, "type": "parametric"}
+        ci = get_confidence_intervals_parametric(dfs, factor_levels)
+        payload["confidence_intervals_visualization"] = ci
     else:
-        are_lc_means_different = is_the_mean_different(dfs, method="kruskal")
+        are_means_different = is_the_mean_different(dfs, method="kruskal")
         res_lc = posthoc_dunn(dfs, p_adjust='holm')
-        payload["dunn_lc"] = res_lc
-    payload["are_means_different"] = are_lc_means_different
+        payload["dunn_visualization"] = res_lc
+        pairwise_effects = get_non_parametric_pairwise_effect_size(dfs, factor_levels)
+        payload["pairwise_effects_visualization"] = {"pairwise_effects": pairwise_effects, "type": "non_parametric"}
+        confidence_intervals = get_confidence_intervals_non_parametric(dfs, factor_levels)
+        payload["confidence_intervals_visualization"] = confidence_intervals
+    payload["are_visualization_means_different"] = are_means_different
+    payload["are_means_different"] = are_means_different
     return payload
 
 
@@ -127,6 +160,7 @@ def stats_means_time_height(df: pd.DataFrame, dependent_variable_name: str = "ti
     h30px = heatmap_df[heatmap_df["scent_height"] == "30px"][dependent_variable_name].to_list()
     h40px = heatmap_df[heatmap_df["scent_height"] == "40px"][dependent_variable_name].to_list()
     lc_dfs = [lc20px, lc30px, lc40px]
+    factor_levels = ["20px", "30px", "40px"]
     stats_1d_lc, stats_1d_h = {}, {}
     for index, l in enumerate(lc_dfs):
         if index == 0:
@@ -164,21 +198,41 @@ def stats_means_time_height(df: pd.DataFrame, dependent_variable_name: str = "ti
     payload["are_h_populations_normal"] = h_normality
     if lc_normality:
         are_lc_means_different = is_the_mean_different(lc_dfs)
+        payload["effect_size_lc"] = get_global_effect_size(lc_dfs, method="one_way_anova")
         res_lc = tukey_hsd(*lc_dfs)
         payload["tukey_hsd_lc"] = res_lc
+        pairwise_effects = get_parametric_pairwise_effect_size(lc_dfs, factor_levels)
+        payload["pairwise_effects_lc"] = {"pairwise_effects": pairwise_effects, "type": "parametric"}
+        ci = get_confidence_intervals_parametric(lc_dfs, factor_levels)
+        payload["confidence_intervals_lc"] = ci
     else:
         are_lc_means_different = is_the_mean_different(lc_dfs, method="kruskal")
+        payload["effect_size_lc"] = get_global_effect_size(lc_dfs, method="kruskal")
         res_lc = posthoc_dunn(lc_dfs, p_adjust='holm')
         payload["dunn_lc"] = res_lc
+        pairwise_effects = get_non_parametric_pairwise_effect_size(lc_dfs, factor_levels)
+        payload["pairwise_effects_lc"] = {"pairwise_effects": pairwise_effects, "type": "non_parametric"}
+        confidence_intervals = get_confidence_intervals_non_parametric(lc_dfs, factor_levels)
+        payload["confidence_intervals_lc"] = confidence_intervals
     payload["are_lc_means_different"] = are_lc_means_different
     if h_normality:
         are_h_means_different = is_the_mean_different(h_dfs)
+        payload["effect_size_h"] = get_global_effect_size(h_dfs, method="one_way_anova")
         res_h = tukey_hsd(*h_dfs)
         payload["tukey_hsd_h"] = res_h
+        pairwise_effects = get_parametric_pairwise_effect_size(h_dfs, factor_levels)
+        payload["pairwise_effects_h"] = {"pairwise_effects": pairwise_effects, "type": "parametric"}
+        ci = get_confidence_intervals_non_parametric(h_dfs, factor_levels)
+        payload["confidence_intervals_h"] = ci
     else:
         are_h_means_different = is_the_mean_different(h_dfs, method="kruskal")
+        payload["effect_size_h"] = get_global_effect_size(h_dfs, method="kruskal")
         res_h = posthoc_dunn(h_dfs, p_adjust='holm')
         payload["dunn_h"] = res_h
+        pairwise_effects = get_non_parametric_pairwise_effect_size(h_dfs, factor_levels)
+        payload["pairwise_effects_h"] = {"pairwise_effects": pairwise_effects, "type": "non_parametric"}
+        confidence_intervals = get_confidence_intervals_non_parametric(lc_dfs, factor_levels)
+        payload["confidence_intervals_h"] = confidence_intervals
     payload["are_h_means_different"] = are_h_means_different
     line_chart_df.boxplot(column="time_metric", by=["scent_height"])
     plt.title("line_chart")
@@ -212,6 +266,7 @@ def stats_means_time_viz(df: pd.DataFrame) -> dict:
     line_charts = line_charts_df["time_metric"].to_list()
     heatmaps = heatmaps_df["time_metric"].to_list()
     dfs = [line_charts, heatmaps]
+    factor_levels = ["line_charts", "heatmaps"]
     payload, stats_1d = {}, {}
     for index, d in enumerate(dfs):
         if index == 0:
@@ -221,19 +276,27 @@ def stats_means_time_viz(df: pd.DataFrame) -> dict:
             print("=====statistics for colorfields. Time till completion vs visualization.========")
             stats_1d["colorfields"] = generate_standard_plot_and_stats_for_1d_data(d, show_plot=False)
     payload["stats_1d"] = stats_1d
-    lc_normality = True
+    normality = True
     for l in dfs:
         if not is_data_normal(l):
-            lc_normality = False
-    payload["are_populations_normal"] = lc_normality
-    if lc_normality:
+            normality = False
+    payload["are_populations_normal"] = normality
+    if normality:
         are_lc_means_different = is_the_mean_different(dfs)
         res_lc = tukey_hsd(*dfs)
-        payload["tukey_hsd_lc"] = res_lc
+        payload["tukey_hsd_visualization"] = res_lc
+        pairwise_effects = get_parametric_pairwise_effect_size(dfs, factor_levels)
+        payload["pairwise_effects_visualization"] = {"pairwise_effects": pairwise_effects, "type": "parametric"}
+        ci = get_confidence_intervals_parametric(dfs, factor_levels)
+        payload["confidence_intervals_visualization"] = ci
     else:
         are_lc_means_different = is_the_mean_different(dfs, method="kruskal")
         res_lc = posthoc_dunn(dfs, p_adjust='holm')
-        payload["dunn_lc"] = res_lc
+        payload["dunn_visualization"] = res_lc
+        pairwise_effects = get_non_parametric_pairwise_effect_size(dfs, factor_levels)
+        payload["pairwise_effects_visualization"] = {"pairwise_effects": pairwise_effects, "type": "non_parametric"}
+        confidence_intervals = get_confidence_intervals_non_parametric(dfs, factor_levels)
+        payload["confidence_intervals_visualization"] = confidence_intervals
     payload["are_means_different"] = are_lc_means_different
     concated = pd.concat([line_charts_df, heatmaps_df], ignore_index=True, axis=0)
     concated.boxplot(column="time_metric", by=["visualization"])

@@ -534,14 +534,25 @@ def check_normality_and_apply_statistical_test(list_of_groups: [], name: str = "
         if not is_data_normal(d):
             normality = False
     payload["are_populations_normal"] = normality
+    factor_levels = ["line_charts", "colorfields"]
     if normality:
         are_means_different = is_the_mean_different(dfs)
-        res = tukey_hsd(*dfs)
-        payload["tukey_hsd"] = res
+        payload["effect_size"] = get_global_effect_size(dfs, method="one_way_anova")
+        res_lc = tukey_hsd(*dfs)
+        payload["tukey_hsd"] = res_lc
+        pairwise_effects = get_parametric_pairwise_effect_size(dfs, factor_levels)
+        payload["pairwise_effects"] = {"pairwise_effects": pairwise_effects, "type": "parametric"}
+        ci = get_confidence_intervals_parametric(dfs, factor_levels)
+        payload["confidence_intervals"] = ci
     else:
         are_means_different = is_the_mean_different(dfs, method="kruskal")
-        res = posthoc_dunn(dfs, p_adjust='holm')
-        payload["dunn"] = res
+        payload["effect_size"] = get_global_effect_size(dfs, method="kruskal")
+        res_lc = posthoc_dunn(dfs, p_adjust='holm')
+        payload["dunn"] = res_lc
+        pairwise_effects = get_non_parametric_pairwise_effect_size(dfs, factor_levels)
+        payload["pairwise_effects"] = {"pairwise_effects": pairwise_effects, "type": "non_parametric"}
+        confidence_intervals = get_confidence_intervals_non_parametric(dfs, factor_levels)
+        payload["confidence_intervals"] = confidence_intervals
     payload["are_means_different"] = are_means_different
     return {name: payload}
 

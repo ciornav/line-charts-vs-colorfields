@@ -10,6 +10,28 @@ def read_data():
     return df
 
 
+# obtained by breakpointing on the ./helpers/general_study_helpers.py (initiated by study_analyzer.py) on function stats_means_accuracy
+DATA_EXTREMA = {
+"WFG2": {
+    "task1": {
+        "maximum": 0.833,
+        "minimum": 0.074
+    },
+    "task2": {
+        "maximum": 2.042,
+        "minimum": 1.22
+    },
+    "task3": {
+        "maximum": 2.042,
+        "minimum": 0.266
+    },
+    "task4": {
+        "minimum": 0.28,
+        "maximum": 1.025
+    }
+}}
+
+
 def task_1_plotter(t1_df_merged: pd.DataFrame):
     line_chart_df = t1_df_merged[t1_df_merged["visualization"] == "line_chart"]
     heatmap_df = t1_df_merged[t1_df_merged["visualization"] == "heatmap"]
@@ -174,31 +196,80 @@ def task_4_plotter(t4_df_merged: pd.DataFrame):
         }}
     return full_stats
 
+def print_effect_sizes_with_ci_as_table(payload: dict, task: str) -> None:
+    cost_task_dependent_variable_name = {
+        "task1": "elec_cost_colormaps_means_stats",
+        "task2": "total_costs_colormaps_means_stats",
+        "task3": "total_costs_colormaps_means_stats",
+        "task4": "total_costs_colormaps_means_stats",
+    }
+    cost_data = payload["cost_means_stats"]
+    _print_latex_table_row(cost_data, cost_task_dependent_variable_name, task)
+    time_data = payload["time_means_stats"]
+    time_task_dependent_variable_name = {
+        "task1": "time_to_execute_colormaps",
+        "task2": "time_to_execute_colormaps",
+        "task3": "time_to_execute_colormaps",
+        "task4": "time_to_execute_colormaps",
+    }
+    _print_latex_table_row(time_data, time_task_dependent_variable_name, task)
+
+
+def _print_latex_table_row(statistics_of_interest: dict, task_dependent_variable_name: str, task: str) -> None:
+    stats = statistics_of_interest[task_dependent_variable_name[task]]
+    cell11 = f"{stats['effect_size_lc']['metric']:.2f}"
+    cell12 = f"{stats['effect_size_h']['metric']:.2f}"
+    ci_lc_keys = list(stats['confidence_intervals_lc'].keys())
+    ci_h_keys = list(stats['confidence_intervals_h'].keys())
+    cell13 = f"{stats['confidence_intervals_lc'][ci_lc_keys[0]]['metric']:.2f}{stats['confidence_intervals_lc'][ci_lc_keys[0]]['ci']}"
+    cell14 = f"{stats['confidence_intervals_lc'][ci_lc_keys[1]]['metric']:.2f}{stats['confidence_intervals_lc'][ci_lc_keys[1]]['ci']}"
+    cell15 = f"{stats['confidence_intervals_lc'][ci_lc_keys[2]]['metric']:.2f}{stats['confidence_intervals_lc'][ci_lc_keys[2]]['ci']}"
+    cell16 = f"{stats['confidence_intervals_h'][ci_h_keys[0]]['metric']:.2f}{stats['confidence_intervals_h'][ci_h_keys[0]]['ci']}"
+    cell17 = f"{stats['confidence_intervals_h'][ci_h_keys[1]]['metric']:.2f}{stats['confidence_intervals_h'][ci_h_keys[1]]['ci']}"
+    cell18 = f"{stats['confidence_intervals_h'][ci_h_keys[2]]['metric']:.2f}{stats['confidence_intervals_h'][ci_h_keys[2]]['ci']}"
+    cell19 = f"{stats['confidence_intervals_h'][ci_h_keys[3]]['metric']:.2f}{stats['confidence_intervals_h'][ci_h_keys[3]]['ci']}"
+    cell110 = f"{stats['confidence_intervals_h'][ci_h_keys[4]]['metric']:.2f}{stats['confidence_intervals_h'][ci_h_keys[4]]['ci']}"
+    cell111 = f"{stats['confidence_intervals_h'][ci_h_keys[5]]['metric']:.2f}{stats['confidence_intervals_h'][ci_h_keys[5]]['ci']}"
+    cell112 = f"{stats['confidence_intervals_h'][ci_h_keys[6]]['metric']:.2f}{stats['confidence_intervals_h'][ci_h_keys[6]]['ci']}"
+    cell113 = f"{stats['confidence_intervals_h'][ci_h_keys[7]]['metric']:.2f}{stats['confidence_intervals_h'][ci_h_keys[7]]['ci']}"
+    cell114 = f"{stats['confidence_intervals_h'][ci_h_keys[8]]['metric']:.2f}{stats['confidence_intervals_h'][ci_h_keys[8]]['ci']}"
+    cell115 = f"{stats['confidence_intervals_h'][ci_h_keys[9]]['metric']:.2f}{stats['confidence_intervals_h'][ci_h_keys[9]]['ci']}"
+    cell116 = f"{stats['confidence_intervals_h'][ci_h_keys[10]]['metric']:.2f}{stats['confidence_intervals_h'][ci_h_keys[10]]['ci']}"
+    cell117 = f"{stats['confidence_intervals_h'][ci_h_keys[11]]['metric']:.2f}{stats['confidence_intervals_h'][ci_h_keys[11]]['ci']}"
+    cell118 = f"{stats['confidence_intervals_h'][ci_h_keys[12]]['metric']:.2f}{stats['confidence_intervals_h'][ci_h_keys[12]]['ci']}"
+    cell119 = f"{stats['confidence_intervals_h'][ci_h_keys[13]]['metric']:.2f}{stats['confidence_intervals_h'][ci_h_keys[13]]['ci']}"
+    cell120 = f"{stats['confidence_intervals_h'][ci_h_keys[14]]['metric']:.2f}{stats['confidence_intervals_h'][ci_h_keys[14]]['ci']}"
+    cells = [
+        cell11, " & ", cell12, " & ", cell13, " & ", cell14,
+        " & ", cell15, " & ", cell16, " & ", cell17, " & ", cell18 ,
+        " & ", cell19, " & ", cell110, " & ", cell111, " & ", cell112 ,
+        " & ", cell113, " & ", cell114, " & ", cell115, " & ", cell116 ,
+        " & ", cell117, " & ", cell118, " & ", cell119, " & ", cell120
+    ]
+    print(f"""Effect sizes and confidence intervals for {task}""")
+    table_row = str.join("", cells)
+    table_row = table_row.replace(")", "]").replace("(", "[")
+    print(f"LaTeX table row for task {task}: & {table_row} \\\\")
+
 
 def main():
     df = read_data()
     eq_df, cvd_df, t1_df_merged, t2_df_merged, t3_df_merged, t4_df_merged, end_q_df = data_set_creator(df)
     common_users = get_user_intersection(t1_df_merged, t2_df_merged, t3_df_merged, t4_df_merged)
+    plotters = [task_1_plotter, task_2_plotter, task_3_plotter, task_4_plotter]
     # removes the members who aborted and have not completed the tasks till the end
     t1_common, t2_common, t3_common, t4_common = common_members_dfs(t1_df_merged, t2_df_merged, t3_df_merged,
                                                                     t4_df_merged, common_users)
-    task1_stats = task_1_plotter(t1_common)
-    plt.show()
-    task2_stats = task_2_plotter(t2_common)
-    plt.show()
-    task3_stats = task_3_plotter(t3_common)
-    plt.show()
-    task4_stats = task_4_plotter(t4_common)
-    plt.show()
-    print(f"""results for task 1 are:
-     { task1_stats}
-    and results for task 2 are:
-     {task2_stats}
-    and results for task 3 are:
-     {task3_stats}
-     and results for task 4 are:
-     {task4_stats}
-    """ )
+    datasets = [t1_common, t2_common, t3_common, t4_common]
+    tasks = ["task1", "task2", "task3", "task4"]
+    results = {}
+    for i, task_number in enumerate(tasks):
+        print(f"Starting analysis for task {i+1}")
+        stats = plotters[i](datasets[i])
+        print_effect_sizes_with_ci_as_table(stats, task_number)
+        print(f"Completed analysis for task {i+1}")
+        results[f"task_{i+1}"] = stats
+
 
 
 if __name__ == '__main__':
