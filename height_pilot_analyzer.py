@@ -100,11 +100,11 @@ def normalize_data(df:pd.DataFrame, column_name:str, task_number:str) -> pd.Data
 def print_effect_sizes_with_ci_as_table(payload: dict, task: str) -> None:
     cost_data = payload["cost_means_stats"]
     _print_summary_latex_table_row(cost_data,  task, "cost", factor_levels=["lc", "h"])
-    # _print_detailed_latex_table_row(cost_data, "cost_by_height", task, "cost", factor_levels=["lc", "h"])
+    _print_detailed_latex_table_row(cost_data, "cost_by_height", task, "cost", factor_levels=["lc", "h"])
     # _print_latex_table_row(cost_data, "cost_by_height", task, "cost", factor_levels=["lc", "h"])
     time_data = payload["time_means_stats"]
     _print_summary_latex_table_row(time_data,  task, "time", factor_levels=["lc", "h"], global_stats_name="time_to_execute_by_height", viz_stats_name="time_by_viz_lc_or_h")
-    # _print_detailed_latex_table_row(time_data, "time_to_execute_by_height", task, "time", factor_levels=["lc", "h"])
+    _print_detailed_latex_table_row(time_data, "time_to_execute_by_height", task, "time", factor_levels=["lc", "h"])
     # _print_latex_table_row(time_data, "time_to_execute_by_height", task, "time", factor_levels=["lc", "h"])
 
 
@@ -143,9 +143,9 @@ def _print_summary_latex_table_row(
         print(f"cell ES_{factor_level}: {global_stats[f'effect_size_{factor_level}']}")
         cells.append(f"{global_stats[f'effect_size_{factor_level}']['metric']:.2f}")
     cost_by_viz = statistics_of_interest[viz_stats_name]
-    print(f"cell ES_viz: {cost_by_viz['effect_size_viz']}")
-    global_viz = cost_by_viz["effect_size_viz"]["metric"]
-    cells.append(f"{global_viz:.2f}")
+    # print(f"cell ES_viz: {cost_by_viz['effect_size_viz']}")
+    # global_viz = cost_by_viz["effect_size_viz"]["metric"]
+    # cells.append(f"{global_viz:.2f}")
     ci_viz_dict = cost_by_viz["confidence_intervals_viz"]
     print(f"cell PairWise CI_viz: {ci_viz_dict[('line_charts', 'heatmaps')]}")
     metric_viz = ci_viz_dict[("line_charts", "heatmaps")]['metric']

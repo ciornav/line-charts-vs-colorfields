@@ -62,10 +62,10 @@ def task_plotter(t_data:pd.DataFrame, dependent_variable_name:DependentVariableP
     full_stats = {"cost_means_stats": {
         "costs_by_colormap": means_stats_payload,
         "costs_by_viz": viz_stats_payload,
-        "osts_by_seq_or_quali": means_quali_seq_stats_payload
+        "costs_by_seq_or_quali": means_quali_seq_stats_payload
     },
         "time_means_stats": {
-            "time_by_colormaps": time_colormaps_stats_payload,
+            "time_by_colormap": time_colormaps_stats_payload,
             "time_by_viz": time_viz_stats_payload,
             "time_by_seq_or_quali": time_quali_seq_stats_payload
         }}
@@ -73,12 +73,16 @@ def task_plotter(t_data:pd.DataFrame, dependent_variable_name:DependentVariableP
 
 def print_effect_sizes_with_ci_as_table(payload: dict, task: str) -> None:
     cost_data = payload["cost_means_stats"]
-    _print_latex_table_row(cost_data, "costs_by_colormap", task, "cost_metric")
+    _print_detailed_latex_table_row(cost_data, "costs_by_colormap", task, "cost_metric")
+    _print_summary_latex_table_row(cost_data, task, "cost", factor_levels=["lc", "h"],
+                                   global_stats_name="costs_by_colormap", viz_stats_name="costs_by_viz", seq_stats_name="costs_by_seq_or_quali")
     time_data = payload["time_means_stats"]
-    _print_latex_table_row(time_data, "time_by_colormaps", task, "time_metric")
+    _print_detailed_latex_table_row(time_data, "time_by_colormap", task, "time_metric")
+    _print_summary_latex_table_row(time_data, task, "time", factor_levels=["lc", "h"],
+                                   global_stats_name="time_by_colormap", viz_stats_name="time_by_viz", seq_stats_name="time_by_seq_or_quali")
 
 
-def _print_latex_table_row(statistics_of_interest: dict, stat_name: str, task: str, metric_name: str,) -> None:
+def _print_detailed_latex_table_row(statistics_of_interest: dict, stat_name: str, task: str, metric_name: str, ) -> None:
     stats = statistics_of_interest[stat_name]
     cells = []
     for viz in VisualizationTypes:
@@ -89,6 +93,41 @@ def _print_latex_table_row(statistics_of_interest: dict, stat_name: str, task: s
         cells.append(f"{stats['confidence_intervals_lc'][ci_lc_keys[index]]['metric']:.2f}{stats['confidence_intervals_lc'][ci_lc_keys[index]]['ci']}")
     for index, key in enumerate(ci_h_keys):
         cells.append(f"{stats['confidence_intervals_h'][ci_h_keys[index]]['metric']:.2f}{stats['confidence_intervals_h'][ci_h_keys[index]]['ci']}")
+    print(f"""Effect sizes and confidence intervals for {task}""")
+    table_row = str.join(" & ", cells)
+    table_row = table_row.replace(")", "]").replace("(", "[")
+    print(f"LaTeX table row for task {task} and metric name {metric_name}: & {table_row} \\\\")
+
+
+def _print_summary_latex_table_row(
+        statistics_of_interest: dict,
+        task: str,
+        metric_name: str,
+        factor_levels: list[str],
+        global_stats_name: str = "costs_by_colormap",
+        viz_stats_name: str = "costs_by_viz",
+        seq_stats_name: str = "cost_by_seq_or_quali"
+
+) -> None:
+    global_stats = statistics_of_interest[global_stats_name]
+    cells = []
+    for factor_level in factor_levels:
+        print(f"cell ES_{factor_level}: {global_stats[f'effect_size_{factor_level}']}")
+        cells.append(f"{global_stats[f'effect_size_{factor_level}']['metric']:.2f}")
+    cost_by_seq = statistics_of_interest[seq_stats_name]
+    print(f"cell ES_seq_or_quali: {cost_by_seq['confidence_intervals_colormap_type']}")
+    pairwise_seq_metric = cost_by_seq["confidence_intervals_colormap_type"][("sequential", "qualitative")]["metric"]
+    pairwise_seq_ci = cost_by_seq["confidence_intervals_colormap_type"][("sequential", "qualitative")]["ci"]
+    cells.append(f"{pairwise_seq_metric:.2f}{pairwise_seq_ci}")
+    cost_by_viz = statistics_of_interest[viz_stats_name]
+    # print(f"cell ES_viz: {cost_by_viz['effect_size_viz']}")
+    # global_viz = cost_by_viz["effect_size_viz"]["metric"]
+    # cells.append(f"{global_viz:.2f}")
+    ci_viz_dict = cost_by_viz["confidence_intervals_viz"]
+    print(f"cell PairWise CI_viz: {ci_viz_dict[('line_charts', 'heatmaps')]}")
+    metric_viz = ci_viz_dict[("line_charts", "heatmaps")]['metric']
+    ci_viz = ci_viz_dict[("line_charts", "heatmaps")]['ci']
+    cells.append(f"{metric_viz:.2f}{ci_viz}")
     print(f"""Effect sizes and confidence intervals for {task}""")
     table_row = str.join(" & ", cells)
     table_row = table_row.replace(")", "]").replace("(", "[")
