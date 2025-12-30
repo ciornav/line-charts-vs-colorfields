@@ -4,6 +4,8 @@ from helpers.common_helpers import Tasks, DependentVariables
 
 current_dir = pathlib.Path(__file__).parent.absolute()
 
+DATASETS = ["WFG2", "WFG4", "WFG5"]
+OUPUTS_CONFIG = ['3', '5', '7']
 
 def read_data():
     filename = "./data/study_data/participant_data.csv"
@@ -26,61 +28,6 @@ def task_analysis(df:pd.DataFrame, task_name:str, dependent_variable_name:str):
                   f"time_stats": time_stats_payload,
                   "task_number": task_name}
     return full_stats
-
-
-def task_1_plotter(t0_df_merged: pd.DataFrame):
-    line_chart_df = t0_df_merged[t0_df_merged["visualization"] == "line_chart"]
-    heatmap_df = t0_df_merged[t0_df_merged["visualization"] == "heatmap"]
-    dependent_variable_name = "history_lowest_elec_cost"
-    task_number = [i for i in list(locals().keys()) if i.__contains__("_df_merged")][0].split("_df_merged")[0].split("t")[1]
-    lc_stats, h_stats = get_1d_stats_on_experiment(line_chart_df, heatmap_df, dependent_variable_name, task_number)
-    # these are all the statistical tests
-    # the statistics for each of the 1d data are stored in lc_stats for line_charts and in h_stats for heatmaps
-    means_stats_payload = stats_means_accuracy(t0_df_merged, dependent_variable_name)
-    time_stats_payload = stats_time(t0_df_merged)
-    full_stats = {"normalized_costs_task1": means_stats_payload,
-                  "time_stats_task1": time_stats_payload}
-    return full_stats
-
-
-def task_2_plotter(t1_df_merged: pd.DataFrame):
-    line_chart_df = t1_df_merged[t1_df_merged["visualization"] == "line_chart"]
-    heatmap_df = t1_df_merged[t1_df_merged["visualization"] == "heatmap"]
-    dependent_variable_name = "history_lowest_overall_cost"
-    task_number = [i for i in list(locals().keys()) if i.__contains__("_df_merged")][0].split("_df_merged")[0].split("t")[1]
-    lc_stats, h_stats = get_1d_stats_on_experiment(line_chart_df, heatmap_df, dependent_variable_name, task_number)
-    means_stats_payload = stats_means_accuracy(t1_df_merged, dependent_variable_name)
-    time_stats_payload = stats_time(t1_df_merged)
-    full_stats = {"normalized_costs_task2": means_stats_payload,
-                  "time_stats_task2": time_stats_payload}
-    return full_stats
-
-
-def task_3_plotter(t2_df_merged: pd.DataFrame):
-    line_chart_df = t2_df_merged[t2_df_merged["visualization"] == "line_chart"]
-    heatmap_df = t2_df_merged[t2_df_merged["visualization"] == "heatmap"]
-    dependent_variable_name = "history_lowest_overall_cost"
-    task_number = [i for i in list(locals().keys()) if i.__contains__("_df_merged")][0].split("_df_merged")[0].split("t")[1]
-    lc_stats, h_stats = get_1d_stats_on_experiment(line_chart_df, heatmap_df, dependent_variable_name, task_number)
-    means_stats_payload = stats_means_accuracy(t2_df_merged, dependent_variable_name)
-    time_stats_payload = stats_time(t2_df_merged)
-    full_stats = {"normalized_costs_task3": means_stats_payload,
-                  "time_stats_task3": time_stats_payload}
-    return full_stats
-
-
-def task_4_plotter(t3_df_merged: pd.DataFrame):
-    line_chart_df = t3_df_merged[t3_df_merged["visualization"] == "line_chart"]
-    heatmap_df = t3_df_merged[t3_df_merged["visualization"] == "heatmap"]
-    dependent_variable_name = "history_highest_overall_cost"
-    task_number = [i for i in list(locals().keys()) if i.__contains__("_df_merged")][0].split("_df_merged")[0].split("t")[1]
-    lc_stats, h_stats = get_1d_stats_on_experiment(line_chart_df, heatmap_df, dependent_variable_name, task_number)
-    means_stats_payload = stats_means_accuracy(t3_df_merged,  dependent_variable_name)
-    time_stats_payload = stats_time(t3_df_merged)
-    full_stats = {"normalized_costs_task4": means_stats_payload,
-                  "time_stats_task4": time_stats_payload}
-    return full_stats
-
 
 def create_task_p_values_table(task_results:dict):
     """
@@ -107,52 +54,60 @@ def create_task_p_values_table(task_results:dict):
     return task_p_values
 
 def print_effect_sizes_with_ci_as_table(payload: dict, task: str) -> None:
-    cost_task_dependent_variable_name = {
-        task: f"normalized_costs_{task}",
-    }
-    _print_latex_table_row(payload, cost_task_dependent_variable_name, task)
-    time_task_dependent_variable_name = {
-        task: f"time_stats_{task}",
-    }
-    _print_latex_table_row(payload, time_task_dependent_variable_name, task)
+    _print_latex_table_row(payload, "normalized_costs", task)
+    _print_latex_table_row(payload, "time_stats", task)
 
 
 def _print_latex_table_row(statistics_of_interest: dict, task_dependent_variable_name: str, task: str) -> None:
-    stats = statistics_of_interest[task_dependent_variable_name[task]]
-    cell11 = f"{stats['effect_size_lc']['metric']:.2f}"
-    cell12 = f"{stats['effect_size_h']['metric']:.2f}"
-    ci_lc_keys = list(stats['confidence_intervals_lc'].keys())
-    ci_h_keys = list(stats['confidence_intervals_h'].keys())
-    cell13 = f"{stats['confidence_intervals_lc'][ci_lc_keys[0]]['metric']:.2f}{stats['confidence_intervals_lc'][ci_lc_keys[0]]['ci']}"
-    cell14 = f"{stats['confidence_intervals_lc'][ci_lc_keys[1]]['metric']:.2f}{stats['confidence_intervals_lc'][ci_lc_keys[1]]['ci']}"
-    cell15 = f"{stats['confidence_intervals_lc'][ci_lc_keys[2]]['metric']:.2f}{stats['confidence_intervals_lc'][ci_lc_keys[2]]['ci']}"
-    cell16 = f"{stats['confidence_intervals_h'][ci_h_keys[0]]['metric']:.2f}{stats['confidence_intervals_h'][ci_h_keys[0]]['ci']}"
-    cell17 = f"{stats['confidence_intervals_h'][ci_h_keys[1]]['metric']:.2f}{stats['confidence_intervals_h'][ci_h_keys[1]]['ci']}"
-    cell18 = f"{stats['confidence_intervals_h'][ci_h_keys[2]]['metric']:.2f}{stats['confidence_intervals_h'][ci_h_keys[2]]['ci']}"
-    cell19 = f"{stats['confidence_intervals_h'][ci_h_keys[3]]['metric']:.2f}{stats['confidence_intervals_h'][ci_h_keys[3]]['ci']}"
-    cell110 = f"{stats['confidence_intervals_h'][ci_h_keys[4]]['metric']:.2f}{stats['confidence_intervals_h'][ci_h_keys[4]]['ci']}"
-    cell111 = f"{stats['confidence_intervals_h'][ci_h_keys[5]]['metric']:.2f}{stats['confidence_intervals_h'][ci_h_keys[5]]['ci']}"
-    cell112 = f"{stats['confidence_intervals_h'][ci_h_keys[6]]['metric']:.2f}{stats['confidence_intervals_h'][ci_h_keys[6]]['ci']}"
-    cell113 = f"{stats['confidence_intervals_h'][ci_h_keys[7]]['metric']:.2f}{stats['confidence_intervals_h'][ci_h_keys[7]]['ci']}"
-    cell114 = f"{stats['confidence_intervals_h'][ci_h_keys[8]]['metric']:.2f}{stats['confidence_intervals_h'][ci_h_keys[8]]['ci']}"
-    cell115 = f"{stats['confidence_intervals_h'][ci_h_keys[9]]['metric']:.2f}{stats['confidence_intervals_h'][ci_h_keys[9]]['ci']}"
-    cell116 = f"{stats['confidence_intervals_h'][ci_h_keys[10]]['metric']:.2f}{stats['confidence_intervals_h'][ci_h_keys[10]]['ci']}"
-    cell117 = f"{stats['confidence_intervals_h'][ci_h_keys[11]]['metric']:.2f}{stats['confidence_intervals_h'][ci_h_keys[11]]['ci']}"
-    cell118 = f"{stats['confidence_intervals_h'][ci_h_keys[12]]['metric']:.2f}{stats['confidence_intervals_h'][ci_h_keys[12]]['ci']}"
-    cell119 = f"{stats['confidence_intervals_h'][ci_h_keys[13]]['metric']:.2f}{stats['confidence_intervals_h'][ci_h_keys[13]]['ci']}"
-    cell120 = f"{stats['confidence_intervals_h'][ci_h_keys[14]]['metric']:.2f}{stats['confidence_intervals_h'][ci_h_keys[14]]['ci']}"
-    cells = [
-        cell11, " & ", cell12, " & ", cell13, " & ", cell14,
-        " & ", cell15, " & ", cell16, " & ", cell17, " & ", cell18 ,
-        " & ", cell19, " & ", cell110, " & ", cell111, " & ", cell112 ,
-        " & ", cell113, " & ", cell114, " & ", cell115, " & ", cell116 ,
-        " & ", cell117, " & ", cell118, " & ", cell119, " & ", cell120
-    ]
-    print(f"""Effect sizes and confidence intervals for {task}""")
-    table_row = str.join("", cells)
+    stats = statistics_of_interest[task_dependent_variable_name]
+    configs = list(stats.keys())
+    cells = []
+    key = ("line_charts", "colorfields")
+    for dataset in DATASETS:
+        for output in OUPUTS_CONFIG:
+            config_suffix = f"{dataset}_{output}"
+            matched_config = [c for c in configs if config_suffix in c][0]
+            print(f"Matched config: {matched_config}")
+            metric = stats[matched_config]['standard']['confidence_intervals_viz'][key]['metric']
+            print(f"Metric name: {stats[matched_config]['standard']['confidence_intervals_viz'][key]['metric_name']}")
+            ci = stats[matched_config]['standard']['confidence_intervals_viz'][key]['ci']
+            cell = f"{metric:.2f}{ci}"
+            cells.append(cell)
+            i = configs.index(matched_config)
+            configs.pop(i)
+        dataset_config =  [c for c in configs if dataset in c][0]
+        print(f"Dataset config: {dataset_config}")
+        metric = stats[dataset_config]['standard']['confidence_intervals_viz'][key]['metric']
+        print(f"Metric name: {stats[dataset_config]['standard']['confidence_intervals_viz'][key]['metric_name']}")
+        ci = stats[dataset_config]['standard']['confidence_intervals_viz'][key]['ci']
+        cell = f"{metric:.2f}{ci}"
+        cells.append(cell)
+    for output in OUPUTS_CONFIG:
+        config_suffix = f"_{output}"
+        matched_config = [c for c in configs if config_suffix in c][0]
+        print(f"Matched config: {matched_config}")
+        metric = stats[matched_config]['standard']['confidence_intervals_viz'][key]['metric']
+        print(f"Metric name: {stats[matched_config]['standard']['confidence_intervals_viz'][key]['metric_name']}")
+        ci = stats[matched_config]['standard']['confidence_intervals_viz'][key]['ci']
+        cell = f"{metric:.2f}{ci}"
+        cells.append(cell)
+        i = configs.index(matched_config)
+        configs.pop(i)
+    task_metric = stats[f"{task}"]['standard']["confidence_intervals_viz"][key]['metric']
+    print(f"Task Metric name: {stats[f'{task}']['standard']['confidence_intervals_viz'][key]['metric_name']}")
+    task_ci = stats[f"{task}"]['standard']["confidence_intervals_viz"][key]['ci']
+    task_cell = f"{task_metric:.2f}{task_ci}"
+    cells.append(task_cell)
+    print(f"""Confidence intervals for {task}""")
+    table_row = "&"
+    for i, cell in enumerate(cells):
+        table_row += f"{cell} "
+        if (i+1) % 4 == 0:
+            table_row += " \\\\ & \n"
+        else:
+            table_row += "& "
     table_row = table_row.replace(")", "]").replace("(", "[")
-    print(f"LaTeX table row for task {task}: & {table_row} \\\\")
-
+    print(f"LaTeX table row for task {task} and dependent variable {task_dependent_variable_name}: {table_row} \\\\")
 
 
 def main():
@@ -173,8 +128,7 @@ def main():
     for i, task_number in enumerate(tasks):
         print(f"Starting analysis for task {i+1}")
         stats = task_analysis(datasets[i], task_number, dependent_variable_name=dependent_variable_names[i])
-        # stats = plotters[i](datasets[i])
-        # print_effect_sizes_with_ci_as_table(stats, task_number)
+        print_effect_sizes_with_ci_as_table(stats, task_number)
         print(f"Completed analysis for task {i+1}")
         results[f"task_{i+1}"] = stats
 

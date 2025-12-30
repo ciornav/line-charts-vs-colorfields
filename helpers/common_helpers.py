@@ -358,7 +358,7 @@ def get_confidence_intervals_non_parametric(samples: list[list[float]], group_na
         lower = np.round(np.percentile(r_values, 100 * alpha / 2), ROUNDING_DIGITS)
         upper = np.round(np.percentile(r_values, 100 * (1 - alpha / 2)), ROUNDING_DIGITS)
         r_mean = np.round(np.mean(r_values), ROUNDING_DIGITS)
-        cis[comb] = {"metric": r_mean, "ci": (lower, upper), "type":"non_parametric, bootstrapped"}
+        cis[comb] = {"metric": r_mean, "ci": (lower, upper), "metric_name":"non_parametric, bootstrapped"}
     return cis
 
 
