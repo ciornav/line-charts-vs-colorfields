@@ -388,11 +388,11 @@ def create_latex_table(data:dict):
     \end{tabular}
     \end{minipage}
          
-     \caption{ Effect sizes for Pilot 1: scent heights. Each efect size value is
-                calculated according to the methodology presented in section 4. Scent
-                height has no practical effect on user performance. Preliminary data
-                in this pilot suggests that line charts allow faster completion times than
-                colorfields for Task 1 with a medium effect size.}   
+  \caption{Effect sizes for Pilot~1: scent heights.
+  Each efect size value is calculated according to the methodology presented in \\autoref{sec:statistical_analysis_methodology}.
+  Scent height has no practical effect on user performance.
+  Preliminary data in this pilot suggests that line charts allow faster completion times than colorfields for Task~1 (medium effect size: Cohen~\cite{cohen1988edition}).
+  }
      \label{tab:effect_sizes_tasks_cost_pairwise}
      \end{table}
     """
