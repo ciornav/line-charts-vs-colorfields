@@ -254,7 +254,7 @@ def _get_summary_latex_table_row(
     ci_viz = ci_viz_dict[("line_charts", "heatmaps")]['ci']
     effect_metric_type = ci_viz_dict[("line_charts", "heatmaps")]['metric_name']
     is_statistically_significant = all([0 < ci_viz[0], 0 < ci_viz[1]]) or all([ci_viz[0] < 0, ci_viz[1] < 0])
-    effect = f"{metric_viz}[{ci_viz[0]}, {ci_viz[1]}]"
+    effect = f"{metric_viz}~[{ci_viz[0]}, {ci_viz[1]}]"
     cell_content = get_custom_cell(effect, MetricNames(effect_metric_type), is_statistically_significant)
     cells.append(cell_content)
     print(f"""Effect sizes and confidence intervals for {task}""")
@@ -263,33 +263,64 @@ def _get_summary_latex_table_row(
     print(f"LaTeX table row for task {task} and metric name {metric_name}: & {table_row} \\\\")
     return table_row
 
+def _get_effect_size_command(metric_name:MetricNames, effect_size:EffectSizeTypes) -> str:
+    if effect_size == EffectSizeTypes.medium:
+        if metric_name == MetricNames.cohen_d:
+            return "\mediumDEffect"
+        elif metric_name == MetricNames.hedge_g:
+            return "\mediumGEffect"
+        elif metric_name == MetricNames.epsilon_squared:
+            return "\mediumEEffect"
+        elif metric_name == MetricNames.omega_squared:
+            return "\mediumOEffect"
+        elif metric_name == MetricNames.rank_based_r:
+            return "\mediumREffect"
+        else:
+            raise ValueError(f"Unknown metric name: {metric_name}")
+    elif effect_size == EffectSizeTypes.large:
+        if metric_name == MetricNames.cohen_d:
+            return "\largeDEffect"
+        elif metric_name == MetricNames.hedge_g:
+            return "\largeGEffect"
+        elif metric_name == MetricNames.epsilon_squared:
+            return "\largeEEffect"
+        elif metric_name == MetricNames.omega_squared:
+            return "\largeOEffect"
+        elif metric_name == MetricNames.rank_based_r:
+            return "\largeREffect"
+        else:
+            raise ValueError(f"Unknown metric name: {metric_name}")
+    else:
+        return ""
+
+
 def get_custom_cell(effect_value: float | str, metric_name: MetricNames, is_statistically_significant: bool = False) -> str:
     if isinstance(effect_value, str):
-        effect_value_str = effect_value.split("[")[0]
+        effect_value_str = effect_value.split("~[")[0]
         effect_value_float = float(effect_value_str)
+        sign = "+" if effect_value_float >0 else ""
+        effect_value = f"{sign}{effect_value}"
         effect_size = get_interpreted_effect_size(effect_value_float, metric_name)
     else:
         effect_size = get_interpreted_effect_size(effect_value, metric_name)
+        sign = "+" if effect_value >0 else ""
+        effect_value = f"{sign}{effect_value:.2f}"
     metric_name_color = get_color_for_metric_name(metric_name)
     if is_statistically_significant:
-        effect_value = str(effect_value) + "*"
-    if effect_size == EffectSizeTypes.medium:
-        # see command coloredcell in the latex code in the paper
-        return "\cellcolor{cyan!15} "  f"{effect_value}" + " & \cellcolor{" +  f"{metric_name_color}" + "}"
-    elif effect_size == EffectSizeTypes.large:
-        return "\cellcolor{cyan!50} "  f"{effect_value}" + " & \cellcolor{" +  f"{metric_name_color}" + "}"
-    else:
-        return "\cellcolor{white} "  f"{effect_value}" + " & \cellcolor{" +  f"{metric_name_color}" + "}"
+        effect_value = str(effect_value) + "\\textbf{*}"
+    return f"{_get_effect_size_command(metric_name, effect_size)}" +  f" ${effect_value}$" + f" & {metric_name_color} "
 
 def get_color_for_metric_name(metric_name:MetricNames) -> str:
     if metric_name == MetricNames.epsilon_squared:
-        return "blue!45"
+        return "\epsilonCell"
     elif metric_name == MetricNames.omega_squared:
-        return "green!65"
+        return "\omegaCell"
     elif metric_name == MetricNames.cohen_d:
-        return "orange!60"
+        return "\dCell"
     elif metric_name == MetricNames.rank_based_r:
-        return "magenta!40"
+        return "\\rCell"
+    elif metric_name == MetricNames.hedge_g:
+        return "\gCell"
     else:
         raise ValueError(f"Unknown metric name: {metric_name}")
 
@@ -323,11 +354,18 @@ def get_interpreted_effect_size(es_value:float, metric_name:MetricNames) -> Effe
 
 def create_latex_table(data:dict):
     table_header = """
-         \\begin{table}[h!]
+         \\begin{table}[t]
+           \caption{Effect sizes for Pilot~1: scent heights.
+  Values are calculated according to the methodology presented in Section~\\ref{sec:statistical_analysis_methodology}.
+  Scent height has no practical effect on user performance.
+  Line charts might allow a faster completion of Task~1 than colorfields (medium effect size: Cohen~\cite{cohen1988edition}).
+  }
+         \\renewcommand{\\arraystretch}{1.25}
+         \setlength{\\tabcolsep}{2pt}
          \centering
          \small
          \\resizebox{\columnwidth}{!}{
-         \\begin{tabular}{|l|c|c|c|c|c|c|c|c|c|c|c|c|}
+         \\begin{tabular}{|l|p{0.75cm}|p{1pt}|p{0.75cm}|p{1pt}|p{2.3cm}|p{1pt}|p{0.75cm}|p{1pt}|p{0.75cm}|p{1pt}|p{2.6cm}|p{1pt}|}
          \hline
          \\textbf{}
           & \multicolumn{6}{c|}{\\textbf{Cost}} & \multicolumn{6}{c|}{\\textbf{Completion time}}
@@ -335,18 +373,18 @@ def create_latex_table(data:dict):
          \cline{2-13}
          \\textbf{}
          & \multicolumn{4}{c|}{\\textbf{Global Effect Size}}
-         & \multicolumn{2}{c|}{\\textbf{Pairwise ES LC vs C}}
+         & \multicolumn{2}{c|}{\\textbf{Pairwise ES LC vs. C}}
          & \multicolumn{4}{c|}{\\textbf{Global Effect Size}}
-         & \multicolumn{2}{c|}{\\textbf{Pairwise ES LC vs C}}
+         & \multicolumn{2}{c|}{\\textbf{Pairwise ES LC vs. C}}
          \\\\
          \cline{2-13}
          \\textbf{}
          & \multicolumn{2}{c|}{\\textbf{LC}}
          & \multicolumn{2}{c|}{\\textbf{C}}
-         & \multicolumn{2}{c|}{\\textbf{LC vs C}}
+         & \multicolumn{2}{c|}{\\textbf{LC vs. C}}
         & \multicolumn{2}{c|}{\\textbf{LC}}
          & \multicolumn{2}{c|}{\\textbf{C}}
-         & \multicolumn{2}{c|}{\\textbf{LC vs C}} \\\\
+         & \multicolumn{2}{c|}{\\textbf{LC vs. C}} \\\\
         \hline
     """
     for task in data.keys():
@@ -354,7 +392,7 @@ def create_latex_table(data:dict):
         cost_data = payload["cost_means_stats"]
         cost_table_row_data = _get_summary_latex_table_row(cost_data, task, "cost", factor_levels=["lc", "h"])
         # _print_detailed_latex_table_row(cost_data, "cost_by_height", task, "cost", factor_levels=["lc", "h"])
-        table_header += f" {task} & {cost_table_row_data}"
+        table_header += "\\textbf{" + f"{task.capitalize()[:-1]} {task[-1]}" + "}" + f" & {cost_table_row_data}"
         time_data = payload["time_means_stats"]
         time_table_row_data = _get_summary_latex_table_row(time_data, task, "time", factor_levels=["lc", "h"], global_stats_name="time_to_execute_by_height", viz_stats_name="time_by_viz_lc_or_h")
         # _print_detailed_latex_table_row(time_data, "time_to_execute_by_height", task, "time", factor_levels=["lc", "h"])
@@ -366,35 +404,33 @@ def create_latex_table(data:dict):
      \\vspace{0.15em}
     \\begin{minipage}{\linewidth}
     \centering
-    \\tiny
+    \small
     \setlength{\\tabcolsep}{5pt}
     \\renewcommand{\\arraystretch}{0.9}
+    \\vspace{0.5em}
     \\begin{tabular}{@{}l l l l l l l l l l l@{}}
-    \cellcolor{blue!45}\\rule{0.3em}{0pt}  & $\epsilon^2$ & {} &
-    \cellcolor{green!65}\\rule{0.3em}{0pt} & $\omega^2$ & {} &
-    \cellcolor{orange!60}\\rule{0.3em}{0pt} & $d$ & {} &
-    \cellcolor{magenta!40}\\rule{0.3em}{0pt} & $r$
+    \epsilonCell\\rule{0.3em}{0pt}  & $\epsilon^2$ & {} &
+    \omegaCell\\rule{0.3em}{0pt} & $\omega^2$ & {} &
+    \dCell\\rule{0.3em}{0pt} & $d$ & {} &
+    \\rCell\\rule{0.3em}{0pt} & $r$
     \end{tabular}
     \end{minipage}
     
     \\vspace{0.15em}
     \\begin{minipage}{\linewidth}
     \centering
-    \\tiny
+    % \\tiny
     \setlength{\\tabcolsep}{5pt}
     \\renewcommand{\\arraystretch}{0.1}
     \\begin{tabular}{@{}l l l l l l l @{}}
-    \cellcolor{cyan!15}\\rule{0.4em}{0pt}  & medium effect  & {} & \cellcolor{cyan!50}\\rule{0.4em}{0pt} & large effect & {} &  *   statistically significant
+    \mediumDEffect\\rule{0.4em}{0pt}  & medium effect ($d$) & {} & \largeDEffect\\rule{0.4em}{0pt} & large effect ($d$) & {} &  \\textbf{*}   statistically significant
     \end{tabular}
     \end{minipage}
          
-  \caption{Effect sizes for Pilot~1: scent heights.
-  Each efect size value is calculated according to the methodology presented in \\autoref{sec:statistical_analysis_methodology}.
-  Scent height has no practical effect on user performance.
-  Preliminary data in this pilot suggests that line charts allow faster completion times than colorfields for Task~1 (medium effect size: Cohen~\cite{cohen1988edition}).
-  }
-     \label{tab:effect_sizes_tasks_cost_pairwise}
+
+  \label{tab:scented_results_effect_size_pilot1_heights}
      \end{table}
+    
     """
     full_table = table_header + table_footer
     print("Full LaTeX table:")
